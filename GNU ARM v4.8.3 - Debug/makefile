@@ -10,6 +10,7 @@ RM := rm -rf
 -include sources.mk
 -include src/subdir.mk
 -include emlib/subdir.mk
+-include Drivers/subdir.mk
 -include CMSIS/efm32gg/subdir.mk
 -include subdir.mk
 -include objects.mk
@@ -31,7 +32,7 @@ all: Bambihazi.axf
 Bambihazi.axf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GNU ARM C Linker'
-	arm-none-eabi-gcc -g -gdwarf-2 -mcpu=cortex-m3 -mthumb -T "Bambihazi.ld" -Xlinker --gc-sections -Xlinker -Map="Bambihazi.map" --specs=nano.specs -o Bambihazi.axf "./src/Bambihazi.o" "./emlib/em_system.o" "./CMSIS/efm32gg/startup_gcc_efm32gg.o" "./CMSIS/efm32gg/system_efm32gg.o" -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group
+	arm-none-eabi-gcc -g -gdwarf-2 -mcpu=cortex-m3 -mthumb -T "Bambihazi.ld" -Xlinker --gc-sections -Xlinker -Map="Bambihazi.map" --specs=nano.specs -o Bambihazi.axf "./src/Bambihazi.o" "./src/InitDevice.o" "./emlib/em_acmp.o" "./emlib/em_assert.o" "./emlib/em_cmu.o" "./emlib/em_emu.o" "./emlib/em_gpio.o" "./emlib/em_int.o" "./emlib/em_lcd.o" "./emlib/em_lesense.o" "./emlib/em_rtc.o" "./emlib/em_system.o" "./emlib/em_vcmp.o" "./Drivers/caplesense.o" "./Drivers/rtcdriver.o" "./Drivers/segmentlcd.o" "./Drivers/vddcheck.o" "./CMSIS/efm32gg/startup_gcc_efm32gg.o" "./CMSIS/efm32gg/system_efm32gg.o" -Wl,--start-group -lgcc -lc -lnosys -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

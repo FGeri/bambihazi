@@ -17,5 +17,6 @@ EXECUTABLES :=
 SUBDIRS := \
 src \
 emlib \
+Drivers \
 CMSIS/efm32gg \
 
