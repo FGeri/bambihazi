@@ -1,6 +1,6 @@
 /**************************************************************************//**
  * @file
- * @brief Empty Project
+ * @brief Bambihazi
  * @author Energy Micro AS
  * @version 3.20.2
  ******************************************************************************
@@ -43,44 +43,75 @@
 #include "segmentlcd_spec.h"
 #include "segmentlcdconfig.h"
 
+//Macros
 #define BANANAS_MAX 25
 
+//Enum type for game states
 typedef enum
 {
-  ERROR = -1,
   BEFORE_START = 0,
   IN_GAME = 1,
   GAME_OVER = 2
 } GAME_STATES;
 
-int8_t fallingBananas[4]={-1,-1,-1,-1};
 
+
+//Global variables
 static volatile GAME_STATES currentState = BEFORE_START;
 static volatile int32_t difficulty=0;
 SegmentLCD_SegmentData_TypeDef segments[8];
-
 uint16_t totalBananas=0;
 uint16_t caughtBananas=0;
 uint8_t bucketPos=0;
+int8_t fallingBananas[4]={-1,-1,-1,-1};
 int stringPos=0;
 
 //Local prototypes of functions
+/*
+ * @brief Updates the A ring based on its param and displays it.
+ * @param sliderPos The position sensed by the capacitive touch sensor
+ */
 void capSenseAringUpdate(int sliderPos);
+/*
+ * @brief Updates the position of the basket based on the capacitive touch sensor
+ * @param sliderPos the position sensed by the capacitive touch sensor
+ */
 void capSenseBasketUpdate(int sliderPos);
+/*
+ * @brief Drops a banana if there is still some left and shifts all the bananas one down every time it's called
+ */
 void dropNewBanana(void);
+/*
+ * @brief Checks if a banana is caught or missed
+ */
 void bananaCaught(void);
-void RTC_expired(RTCDRV_TimerID_t id, void *user);
-void delay(void);
+/*
+ * @brief Callback function for the timer xTimerforNewBanana
+ */
+void newBananaTimerCallback(RTCDRV_TimerID_t id, void *user);
+/*
+ * @brief Displays the bananas
+ */
 void displayBananas(void);
+/*
+ * @brief Callback function for xTimerForString, shifts the string Game over one to the left
+ */
 void shiftString(RTCDRV_TimerID_t id, void *user);
+/*
+ * @brief Clears the screen
+ */
 void clearScreen(void);
+/*
+ * @brief Interrupt subroutine for GPIO_EVEN IRQs
+ */
+void GPIO_EVEN_IRQHandler(void);
 
+//Timer declarations
 //Timer for counting time for the bananas
 RTCDRV_TimerID_t xTimerForNewBanana;
+//Timer for the string shifting
 RTCDRV_TimerID_t xTimerForString;
-/**************************************************************************//**
- * @brief  A simple delay loop
- *****************************************************************************/
+
 
 void capSenseAringUpdate(int sliderPos)
 {
@@ -141,9 +172,6 @@ void capSenseBasketUpdate(int sliderPos)
 	      segments[i].d=1;
 	    }
 	  }
-	  bananaCaught();
-	  displayBananas();
-	  displaySegmentField(segments);
 }
 void GPIO_EVEN_IRQHandler(void)
 
@@ -162,7 +190,7 @@ void GPIO_EVEN_IRQHandler(void)
 		  //Configuring the nested vector interrupt controller
 		  NVIC_DisableIRQ(GPIO_EVEN_IRQn);
 		currentState=IN_GAME;
-    	RTCDRV_StartTimer( xTimerForNewBanana, rtcdrvTimerTypePeriodic, (1000/(1+difficulty)), RTC_expired, NULL);
+    	RTCDRV_StartTimer( xTimerForNewBanana, rtcdrvTimerTypePeriodic, (1000/(1+difficulty)), newBananaTimerCallback, NULL);
       break;
     case (GAME_OVER):
 		RTCDRV_StopTimer( xTimerForString );
@@ -178,7 +206,7 @@ void GPIO_EVEN_IRQHandler(void)
   }
 
 }
-void RTC_expired(RTCDRV_TimerID_t id, void *user){
+void newBananaTimerCallback(RTCDRV_TimerID_t id, void *user){
 
 	dropNewBanana();
 }
@@ -241,9 +269,7 @@ void shiftString(RTCDRV_TimerID_t id, void *user){
 	strncpy(text,tmp+stringPos,7);
 	SegmentLCD_Write(text);
 }
-void delay() {
-	for(int d=0;d<500000;d++);
-}
+
 
 /**************************************************************************//**
  * @brief  Main function
@@ -266,35 +292,35 @@ int main(void)
     RTCDRV_Init();
     RTCDRV_AllocateTimer( &xTimerForNewBanana);
     RTCDRV_AllocateTimer( &xTimerForString);
-    //RTCDRV_StartTimer( xTimerForString, rtcdrvTimerTypePeriodic, (1000), shiftString, NULL);
     int32_t sliderPos;
     int32_t slider;
   /* Infinite loop */
   while (1) {
 	  switch(currentState)
 	      {
-	  case BEFORE_START:
-	  	  	  {
-	  	  	  	  sliderPos= CAPLESENSE_getSliderPosition();
-	  	  	  	  capSenseAringUpdate(sliderPos);
-	  	  	  	  break;
-	  	  	  }
-	  case IN_GAME:
-		  	  	  clearScreen();
-		  	  	  displayBananas();
-	  	  	  	  slider=CAPLESENSE_getSliderPosition();
-	  	  	  	  capSenseBasketUpdate(slider);
-	  	  	      capSenseAringUpdate(-1);
-	  	  	  	  SegmentLCD_Number(totalBananas*100+caughtBananas);
-	  	  	  	  SegmentLCD_Symbol (LCD_SYMBOL_COL10, 1);
-	  	  	  	  break;
-	  case GAME_OVER:
-		  slider=CAPLESENSE_getSliderPosition();
-		  capSenseAringUpdate(-1);
-	  	  	  	  break;
-	  case ERROR:
-	  	  	  	  	  break;
+	  	  	  //Setup state
+			  case BEFORE_START:
+						  sliderPos= CAPLESENSE_getSliderPosition();
+						  capSenseAringUpdate(sliderPos);
+						  break;
+			  //During game state
+			  case IN_GAME:
+						  clearScreen();
+						  displayBananas();
+						  slider=CAPLESENSE_getSliderPosition();
+						  capSenseBasketUpdate(slider);
+						  capSenseAringUpdate(-1);
+						  SegmentLCD_Number(totalBananas*100+caughtBananas);
+						  SegmentLCD_Symbol (LCD_SYMBOL_COL10, 1);
+						  bananaCaught();
+						  displayBananas();
+						  displaySegmentField(segments);
+						  break;
+			 //After the game state
+			  case GAME_OVER:
+				  slider=CAPLESENSE_getSliderPosition();
+				  capSenseAringUpdate(-1);
+						  break;
 	      }
-
   }
 }
